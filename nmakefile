@@ -1,0 +1,110 @@
+# Copyright (C) Arxan Technologies Inc. 2016
+# All rights Reserved.
+#
+# nmakefile - build the TransformIT samples for Windows
+
+
+
+
+# installation locations for TransformIT 
+!IFNDEF TRANSFORMIT
+TRANSFORMIT = C:\Arxan\TransformIT\EvalKit-7.4-Win-x64
+!ENDIF
+
+# prefix for the TransformIT keygen tools. Must include a trailing slash
+!IFNDEF KEYGEN
+KEYGEN = C:\Arxan\TransformIT\EvalKit-7.4-Win-Tools\TransformIT\bin\ 
+!ENDIF
+
+# An OpenSSL build
+!IFNDEF OPENSSL
+OPENSSL     = C:\Arxan\openssl
+!ENDIF
+!IFNDEF OPENSSL_CMD
+OPENSSL_CMD = $(OPENSSL)\bin\openssl.exe
+!ENDIF
+
+# location of the sample source code
+SRC  = .\
+
+# local build directories
+OBJ  = .\obj
+BIN  = .\bin
+KEYS = .\keys
+
+# extensions for object & executable files
+O   = obj
+EXE = .exe
+
+# compiler options
+CC  = cl
+CXX = cl
+CFLAGS = -O2 -MT -I $(SRC) -I $(KEYS) \
+-I $(OPENSSL)\include \
+-I $(TRANSFORMIT)\TransformIT\include 
+
+!IF [cmd /C dir /B $(OPENSSL)\lib\libcrypto.lib]
+!IF [cmd /C dir /B $(OPENSSL)\lib\libeay32MT.lib]
+!ERROR Missing required OpenSSL library: expecting libcrypto.lib or libeay32MT.lib
+!ELSE
+SSL_LIB = libeay32MT
+SSL_DLL = libeay32
+!ENDIF
+!ELSE
+SSL_LIB = libcrypto
+SSL_DLL = libcrypto
+!ENDIF
+
+LD = link
+LFLAGS = /OUT:$@ $** \
+/NOIMPLIB \
+/LIBPATH:$(OPENSSL)\lib $(SSL_LIB).lib gdi32.lib user32.lib Advapi32.lib \
+/LIBPATH:$(TRANSFORMIT)\TransformIT\lib
+
+# default build target
+all : build
+
+# rules to create keys
+!include keys_win.mk
+
+# auto-generated build rules to build sample code itself
+!include rules_win.mk
+
+# build everything
+build : subdirs $(ALL_SAMPLES)
+
+rebuild : clean build
+
+runall : $(ALL_SAMPLES)
+	xcopy $(OPENSSL)\bin\$(SSL_DLL)*.dll $(BIN)  /d /Y
+	!$**
+
+run : build runall
+
+clean :
+	rmdir /S /Q $(OBJ) $(BIN) $(KEYS)
+
+# rules to compile C++ code
+{$(SRC)\}.cpp{$(OBJ)\}.obj:
+	$(CC) -c -Fo$(OBJ)\\ $(CFLAGS) $< 
+
+{$(SRC)\}.c{$(OBJ)\}.obj:
+	$(CC) -c -Fo$(OBJ)\\ $(CFLAGS) $< 
+
+{$(KEYS)\}.c{$(OBJ)\}.obj::
+	$(CC) -c -Fo$(OBJ)\\ $(CFLAGS) $< 
+
+# create output directories
+subdirs : $(KEYS) $(OBJ) $(BIN)
+
+$(OBJ) :
+	mkdir $(OBJ)
+
+$(BIN) :
+	mkdir $(BIN)
+
+$(KEYS) :
+	mkdir $(KEYS)
+
+$(KEYS)\opensslkeys:
+	mkdir $(KEYS)\opensslkeys
